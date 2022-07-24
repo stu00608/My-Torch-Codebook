@@ -7,8 +7,6 @@ from utils.files import file_choices
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS: sys.path.append(PATHS[k])
 
-# TODO: Write description to functions.
-# TODO: Make a classifier solver.
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
