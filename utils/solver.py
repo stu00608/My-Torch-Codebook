@@ -5,11 +5,10 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
-from utils.helper import set_device
+from utils.helper import set_device, to_numpy, to_tensor
 from utils.dataset import CircleData
 from utils.metrics import mse
 
@@ -75,15 +74,17 @@ class CircleSolver:
         # Change model to evaluation mode inplace.
         self.model.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        total_pred = []
+        total_pred = None
 
         with torch.no_grad():
             for data, label in dataloader:
                 data, label = data.to(device), label.to(device)
                 pred = self.model(data)
-                total_pred.append(pred.numpy())
-        
-        total_pred = np.concatenate(total_pred, axis=0)
+                if torch.is_tensor(total_pred):
+                    total_pred = torch.concat((total_pred, pred), 0)
+                else:
+                    total_pred = pred
+
 
         return total_pred
     
@@ -111,7 +112,7 @@ class CircleSolver:
 
         # Create model object and loss function and optimizer function.
         self.model = CircleRegressor(self.model_params)
-        self.loss_func = mse
+        self.loss_func = nn.CrossEntropyLoss()
         self.optim = Adam(self.model.parameters(), lr=self.model_params["lr"])
 
         # Train
@@ -122,8 +123,8 @@ class CircleSolver:
         test_pred = self._predict(test_dataloader)
 
         # Calculate mse for evaluating train and test data.
-        train_score = mse(train_pred, self.train_dataset.label)
-        test_score = mse(test_pred, self.test_dataset.label)
+        train_score = self.loss_func(train_pred, to_tensor(self.train_dataset.label))
+        test_score = self.loss_func(test_pred, to_tensor(self.test_dataset.label))
 
         # Visualize the result.
         plt.title(f"Circle loss, train score : {train_score}, test_score : {test_score}")

@@ -1,5 +1,5 @@
-exp_name: CircleRegressorExperiment
-run_name: circle_exp_1
+exp_name: CircleLogisticRegressionExperiment
+run_name: circle_logistic_exp_1
 random_state: 100
 model_params:
   N_epoch: 20
@@ -8,7 +8,7 @@ model_params:
   hidden_size: 16
   lr: 0.001
   input_size: 2
-  output_size: 1
+  output_size: 2
 loader_name: CircleData
 loader_params:
   batch_size: 16
