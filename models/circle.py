@@ -1,6 +1,9 @@
 import torch.nn as nn
 
 class CircleRegressor(nn.Module):
+    """This is a regression model for predicting inner or outer circle. 
+    Inherit from `torch.nn.Module`."""
+
     def __init__(self, config):
         super(CircleRegressor, self).__init__()
         self.__dict__.update({}, **config)
@@ -20,6 +23,6 @@ class CircleRegressor(nn.Module):
         self.out = nn.Linear(self.hidden_size, self.output_size)
     
     def forward(self, x):
-        x = self.seq(x)
-        x = self.out(x)
-        return x
+        h = self.seq(x)
+        out = self.out(h)
+        return out.squeeze(-1)

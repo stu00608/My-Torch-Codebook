@@ -15,4 +15,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     solver = CircleSolver(args.config)
-    solver.run()
+    solver.run(args.gpu_id)

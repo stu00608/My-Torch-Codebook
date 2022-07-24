@@ -5,9 +5,11 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
+from utils.helper import set_device
 from utils.dataset import CircleData
 from utils.metrics import mse
 
@@ -15,11 +17,20 @@ PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS: sys.path.append(PATHS[k])
 
 class CircleSolver:
+    """This solver runs a regression training model that predict the label of inner or outer circle.
+    
+    Methods
+    -------
+    run(gpu_id='')
+        Run the whole training process using specific gpu or cpu if blank string was given.
+    """
+
     def __init__(self, config) -> None:
         config = yaml.safe_load(open(PATHS["CONFIG"] + config))  
         self.__dict__.update({}, **config)
     
     def _train(self, dataloader):
+        """Training the model"""
         # Set the model to training mode inplace.
         self.model.train()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -64,7 +75,6 @@ class CircleSolver:
         # Change model to evaluation mode inplace.
         self.model.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         total_pred = []
 
         with torch.no_grad():
@@ -74,33 +84,37 @@ class CircleSolver:
                 total_pred.append(pred.numpy())
         
         total_pred = np.concatenate(total_pred, axis=0)
-        total_pred = np.squeeze(total_pred)
 
         return total_pred
     
-    def run(self):
+    def run(self, gpu_id):
+        set_device(gpu_id)
+
+        # Set seeds manually, so the result is reproducable.
         torch.manual_seed(self.random_state)
         np.random.seed(self.random_state)
 
-        self.train_dataset = CircleData(self.loader_params)
-        self.test_dataset = CircleData(self.loader_params)
-
+        # Get train and test dataset and fit into dataloader.
+        self.train_dataset = CircleData(self.loader_params, self.random_state, is_train=True)
         train_dataloader = DataLoader(
             dataset=self.train_dataset,
             batch_size=self.loader_params["batch_size"],
             shuffle=True,
         )
 
+        self.test_dataset = CircleData(self.loader_params, self.random_state, is_train=False)
         test_dataloader = DataLoader(
             dataset=self.test_dataset,
             batch_size=self.loader_params["batch_size"],
             shuffle=True,
         )
 
+        # Create model object and loss function and optimizer function.
         self.model = CircleRegressor(self.model_params)
-        self.loss_func = nn.HuberLoss()
+        self.loss_func = mse
         self.optim = Adam(self.model.parameters(), lr=self.model_params["lr"])
 
+        # Train
         training_loss = self._train(train_dataloader)
 
         # Evaluation
@@ -111,6 +125,7 @@ class CircleSolver:
         train_score = mse(train_pred, self.train_dataset.label)
         test_score = mse(test_pred, self.test_dataset.label)
 
-        plt.title(f"Circle loss, train score : {round(train_score, 5)}, test_score : {round(test_score, 5)}")
+        # Visualize the result.
+        plt.title(f"Circle loss, train score : {train_score}, test_score : {test_score}")
         plt.plot(list(range(len(training_loss))), training_loss)
         plt.show()

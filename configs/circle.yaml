@@ -13,3 +13,6 @@ loader_name: CircleData
 loader_params:
   batch_size: 16
   N_data: 1000
+  test_split: 0.1
+  circle_noise: 0.05
+  circle_factor: 0.5
