@@ -19,10 +19,10 @@ class CircleRegressor(nn.Module):
             layers.append(nn.Dropout(p=self.dropout_rate))
 
         self.seq = nn.Sequential(*layers)
-
         self.out = nn.Linear(self.hidden_size, self.output_size)
+        self.softmax = nn.Softmax()
     
     def forward(self, x):
         h = self.seq(x)
         out = self.out(h)
-        return out.squeeze(-1)
+        return self.softmax(out).squeeze(-1)
