@@ -1,7 +1,9 @@
+import wandb
 import torch
 import torch.nn as nn
 import yaml
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -27,6 +29,12 @@ class CircleSolver:
     def __init__(self, config) -> None:
         config = yaml.safe_load(open(PATHS["CONFIG"] + config))  
         self.__dict__.update({}, **config)
+        if self.use_wandb:
+            wandb.init(config=config, project="My-PyTorch-Codebook")
+
+        self.progress_data_x = []
+        self.progress_data_y = []
+        self.progress_data_label = []
     
     def _train(self, dataloader):
         """Training the model"""
@@ -36,6 +44,10 @@ class CircleSolver:
         total_epoch = self.model_params["N_epoch"]
         training_loss = []
         training_acc = []
+
+        # Wandb magic.
+        if self.use_wandb:
+            wandb.watch(self.model, log_freq=100)
 
         for epoch in range(total_epoch):
             with tqdm(dataloader, unit="batch") as tepoch:
@@ -50,8 +62,10 @@ class CircleSolver:
                     self.optim.zero_grad()
 
                     # Pass data to model and compute forward.
-                    pred = self.model(data)
+                    intermidiate, pred = self.model(data)
                     pred_max, pred_class_index = pred.max(dim=1)
+
+                    self._log_progress(epoch, intermidiate, pred_class_index)
 
                     # Calcaulate loss between prediction and ground truth.
                     loss = self.loss_func(pred, label)
@@ -73,7 +87,12 @@ class CircleSolver:
 
                     # Update progress bar.
                     tepoch.set_postfix(acc=to_numpy(show_acc), loss=show_epoch_loss)
-                
+
+                if self.use_wandb: 
+                    wandb.log({
+                        "loss": epoch_loss,
+                        "acc": acc
+                    })
                 training_loss.append(epoch_loss)
                 training_acc.append(acc)
         
@@ -88,7 +107,7 @@ class CircleSolver:
         with torch.no_grad():
             for data, label in dataloader:
                 data, label = data.to(device), label.to(device)
-                pred = self.model(data)
+                intermidiate, pred = self.model(data)
                 if torch.is_tensor(total_pred):
                     total_pred = torch.concat((total_pred, pred), 0)
                 else:
@@ -96,6 +115,25 @@ class CircleSolver:
 
 
         return total_pred
+    
+    def _log_progress(self, epoch, data, label):
+        data_x, data_y, label = to_numpy(data[:, 0]), to_numpy(data[:, 1]), to_numpy(label)
+        # self.progress_data_x.append(data_x)
+        # self.progress_data_y.append(data_x)
+        # self.progress_data_label.append(label)
+        # self.progress_data_x = data_x
+        # self.progress_data_y = data_y
+        # self.progress_data_label = label
+        plt.figure(figsize=(10, 10))
+        plt.subplot(111)
+        plt.ylabel("y")
+        plt.xlabel("x")
+        plt.scatter(data_x, data_y, c=label)
+        if not os.path.exists("progress"):
+            os.mkdir("progress")
+        
+        plt.savefig(os.path.join("progress", "snap_epoch_%03d.png" % epoch))
+
     
     def run(self, gpu_id):
         set_device(gpu_id)
@@ -136,15 +174,8 @@ class CircleSolver:
         train_score = self.loss_func(train_loss, to_tensor(self.train_dataset.label))
         test_score = self.loss_func(test_loss, to_tensor(self.test_dataset.label))
 
-        # Visualize the result.
-        plt.figure(figsize=(10, 20))
-        plt.title(f"Circle loss, train score : {train_score}, test_score : {test_score}")
-        plt.subplot(211).set_title("Loss")
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
-        plt.plot(list(range(len(training_loss))), training_loss)
-        plt.subplot(212).set_title("Acc")
-        plt.plot(list(range(len(training_acc))), training_acc)
-        plt.ylabel('accuracy')
-        plt.xlabel('epoch')
-        plt.show()
+        if self.use_wandb:
+            wandb.log({
+                "train_score": train_score,
+                "test_score": test_score
+            })

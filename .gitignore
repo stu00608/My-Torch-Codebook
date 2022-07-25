@@ -4,3 +4,9 @@
 # Skip __pycache__
 models/__pycache__
 utils/__pycache__
+
+# Skip wandb local
+wandb/
+
+# Skip other
+progress/

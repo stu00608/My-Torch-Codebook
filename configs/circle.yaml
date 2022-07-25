@@ -1,6 +1,7 @@
 exp_name: CircleLogisticRegressionExperiment
 run_name: circle_logistic_exp_3
 random_state: 100
+use_wandb: False
 model_params:
   N_epoch: 100
   n_layers: 3
