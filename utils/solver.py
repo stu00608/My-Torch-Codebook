@@ -35,6 +35,7 @@ class CircleSolver:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         total_epoch = self.model_params["N_epoch"]
         training_loss = []
+        training_acc = []
 
         for epoch in range(total_epoch):
             with tqdm(dataloader, unit="batch") as tepoch:
@@ -50,6 +51,7 @@ class CircleSolver:
 
                     # Pass data to model and compute forward.
                     pred = self.model(data)
+                    pred_max, pred_class_index = pred.max(dim=1)
 
                     # Calcaulate loss between prediction and ground truth.
                     loss = self.loss_func(pred, label)
@@ -60,15 +62,22 @@ class CircleSolver:
                     # Gradient step
                     self.optim.step()
 
-                    # Summarize loss in every step.
+                    # Summarize loss and acc in every step.
                     epoch_loss += loss.item()
+                    show_epoch_loss = np.round(epoch_loss, 4)
+                    eval_max, eval_label = label.max(dim=1)
+                    acc = (eval_label == pred_class_index).sum()/to_tensor(data.size(0))
+                    show_acc = np.round(acc, 4)
+                    # accsum = (eval_label == pred_class_index).sum()
+                    # accnum = data.size(0)
 
                     # Update progress bar.
-                    tepoch.set_postfix(loss=epoch_loss)
+                    tepoch.set_postfix(acc=to_numpy(show_acc), loss=show_epoch_loss)
                 
                 training_loss.append(epoch_loss)
+                training_acc.append(acc)
         
-        return training_loss
+        return training_loss, training_acc
     
     def _predict(self, dataloader):
         # Change model to evaluation mode inplace.
@@ -116,17 +125,26 @@ class CircleSolver:
         self.optim = Adam(self.model.parameters(), lr=self.model_params["lr"])
 
         # Train
-        training_loss = self._train(train_dataloader)
+        training_loss, training_acc = self._train(train_dataloader)
 
         # Evaluation
-        train_pred = self._predict(train_dataloader)
-        test_pred = self._predict(test_dataloader)
+        train_loss = self._predict(train_dataloader)
+        test_loss = self._predict(test_dataloader)
 
         # Calculate mse for evaluating train and test data.
-        train_score = self.loss_func(train_pred, to_tensor(self.train_dataset.label))
-        test_score = self.loss_func(test_pred, to_tensor(self.test_dataset.label))
+        # NOTE: Not sure what's this part.
+        train_score = self.loss_func(train_loss, to_tensor(self.train_dataset.label))
+        test_score = self.loss_func(test_loss, to_tensor(self.test_dataset.label))
 
         # Visualize the result.
+        plt.figure(figsize=(10, 20))
         plt.title(f"Circle loss, train score : {train_score}, test_score : {test_score}")
+        plt.subplot(211).set_title("Loss")
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
         plt.plot(list(range(len(training_loss))), training_loss)
+        plt.subplot(212).set_title("Acc")
+        plt.plot(list(range(len(training_acc))), training_acc)
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
         plt.show()
