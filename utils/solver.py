@@ -165,8 +165,8 @@ class CircleSolver:
 
         # Calculate mse for evaluating train and test data.
         # NOTE: Not sure what's this part.
-        train_score = self.loss_func(train_loss, self.train_dataset.label)
-        test_score = self.loss_func(test_loss, self.test_dataset.label)
+        train_score = self.loss_func(train_loss, to_tensor(self.train_dataset.label))
+        test_score = self.loss_func(test_loss, to_tensor(self.test_dataset.label))
 
         if self.use_wandb:
             wandb.log({
