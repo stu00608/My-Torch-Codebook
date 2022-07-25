@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
+from utils.helper import one_hot
+
 
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS: sys.path.append(PATHS[k])
@@ -30,6 +32,8 @@ class CircleData(Dataset):
             factor=self.circle_factor,
             random_state=random_state
         )
+
+        raw_label = one_hot(raw_label, 2)
 
         x_train, x_test, y_train, y_test = train_test_split(
             raw_data, 

@@ -36,6 +36,27 @@ pip install -r requirements.txt
 python main.py --config circle.yaml
 ```
 
+## Run in Docker
+
+- I use `pytorch/pytorch:1.12.0-cuda11.3-cudnn8-runtime` as the source image.
+- In the future I will implement wandb so that you can visialize every just like running example locally.
+
+### Build
+
+```
+docker build -t torch-codebook . --no-cache
+```
+
+### Run
+
+```
+# Run bash
+docker run --gpus all -it --rm torch-codebook bash
+
+# You can run training command like this
+docker run --gpus all -it --rm torch-codebook python3.8 main.py --config circle.yaml
+```
+
 ## Workflow
 
 1. Create a config yaml file use in workflow.
