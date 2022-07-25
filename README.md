@@ -8,12 +8,10 @@
 
 ### Architecture
 
-1. Write description for every functions.
-2. wandb metrics record.
+...
 
 ### Models
 
-1. Circle Classifier.
 2. MNIST Classifier.
 3. Circle AutoEncoder.
    - (x, y) -> Enc -> z{2} -> Dec -> (x, y)
@@ -22,7 +20,7 @@
 ## Environment
 
 ```
-conda create torch python=3.8.12
+conda create torch python=3.8
 ```
 
 ```
