@@ -43,8 +43,10 @@ python main.py --config circle.yaml
 
 ### Build
 
+- Remember to set your `$MY_WANDB_API`.
+
 ```
-docker build -t torch-codebook . --no-cache
+docker build --build-arg WANDB_API=$MY_WANDB_API -t torch-codebook . --no-cache
 ```
 
 ### Run
@@ -54,7 +56,7 @@ docker build -t torch-codebook . --no-cache
 docker run --gpus all -it --rm torch-codebook bash
 
 # You can run training command like this
-docker run --gpus all -it --rm torch-codebook python3.8 main.py --config circle.yaml
+docker run --gpus all -it --rm torch-codebook python main.py --config circle.yaml --gpu_id cuda
 ```
 
 ## Workflow

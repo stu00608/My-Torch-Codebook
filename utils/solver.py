@@ -35,15 +35,14 @@ class CircleSolver:
         self.progress_data_x = []
         self.progress_data_y = []
         self.progress_data_label = []
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     def _train(self, dataloader):
         """Training the model"""
         # Set the model to training mode inplace.
         self.model.train()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         total_epoch = self.model_params["N_epoch"]
-        training_loss = []
-        training_acc = []
 
         # Wandb magic.
         if self.use_wandb:
@@ -56,13 +55,13 @@ class CircleSolver:
                 epoch_loss = 0.
                 for data, label in tepoch:
                     # Send data and label to compute device.
-                    data, label = data.to(device), label.to(device)
+                    data, label = data.to(self.device), label.to(self.device)
                     
                     # Reset the gradien inside optimizer.
                     self.optim.zero_grad()
 
                     # Pass data to model and compute forward.
-                    intermidiate, pred = self.model(data)
+                    intermidiate, pred = self.model(to_tensor(data))
                     pred_max, pred_class_index = pred.max(dim=1)
 
                     self._log_progress(epoch, intermidiate, pred_class_index)
@@ -80,34 +79,29 @@ class CircleSolver:
                     epoch_loss += loss.item()
                     show_epoch_loss = np.round(epoch_loss, 4)
                     eval_max, eval_label = label.max(dim=1)
-                    acc = (eval_label == pred_class_index).sum()/to_tensor(data.size(0))
-                    show_acc = np.round(acc, 4)
+                    acc = (eval_label == pred_class_index).sum()/data.size(0)
+                    show_acc = np.round(to_numpy(acc), 4)
                     # accsum = (eval_label == pred_class_index).sum()
                     # accnum = data.size(0)
 
                     # Update progress bar.
-                    tepoch.set_postfix(acc=to_numpy(show_acc), loss=show_epoch_loss)
+                    tepoch.set_postfix(acc=show_acc, loss=show_epoch_loss)
 
                 if self.use_wandb: 
                     wandb.log({
                         "loss": epoch_loss,
                         "acc": acc
                     })
-                training_loss.append(epoch_loss)
-                training_acc.append(acc)
-        
-        return training_loss, training_acc
-    
+            
     def _predict(self, dataloader):
         # Change model to evaluation mode inplace.
         self.model.eval()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         total_pred = None
 
         with torch.no_grad():
             for data, label in dataloader:
-                data, label = data.to(device), label.to(device)
-                intermidiate, pred = self.model(data)
+                data, label = data.to(self.device), label.to(self.device)
+                intermidiate, pred = self.model(to_tensor(data))
                 if torch.is_tensor(total_pred):
                     total_pred = torch.concat((total_pred, pred), 0)
                 else:
@@ -158,12 +152,12 @@ class CircleSolver:
         )
 
         # Create model object and loss function and optimizer function.
-        self.model = CircleRegressor(self.model_params)
+        self.model = CircleRegressor(self.model_params).to(self.device)
         self.loss_func = nn.CrossEntropyLoss()
         self.optim = Adam(self.model.parameters(), lr=self.model_params["lr"])
 
         # Train
-        training_loss, training_acc = self._train(train_dataloader)
+        self._train(train_dataloader)
 
         # Evaluation
         train_loss = self._predict(train_dataloader)
@@ -171,8 +165,8 @@ class CircleSolver:
 
         # Calculate mse for evaluating train and test data.
         # NOTE: Not sure what's this part.
-        train_score = self.loss_func(train_loss, to_tensor(self.train_dataset.label))
-        test_score = self.loss_func(test_loss, to_tensor(self.test_dataset.label))
+        train_score = self.loss_func(train_loss, self.train_dataset.label)
+        test_score = self.loss_func(test_loss, self.test_dataset.label)
 
         if self.use_wandb:
             wandb.log({
