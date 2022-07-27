@@ -16,4 +16,4 @@ if __name__ == "__main__":
 
     solver = CircleSolver(args.config)
     solver.run(args.gpu_id)
-    solver.progress2gif()
+    # solver.progress2gif()

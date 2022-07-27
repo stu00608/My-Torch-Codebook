@@ -183,7 +183,7 @@ class CircleSolver:
     def progress2gif(self, output_path=""):
         """Store prediction progress gif to local disk. If wandb then upload."""
         if os.path.exists(self.progress_folder):
-            files = glob(os.path.join(self.progress_folder, "*.png"))
+            files = sorted(glob(os.path.join(self.progress_folder, "*.png")))
             imgs = []
             for file in files:
                 imgs.append(imageio.imread(file))
