@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
 from utils.helper import set_device, to_numpy, to_tensor
+from utils.progress2video import progress2video
 from datasets.dataset import CircleData
 
 PATHS = yaml.safe_load(open("paths.yaml"))
@@ -179,6 +180,10 @@ class CircleSolver:
                 "train_score": train_score,
                 "test_score": test_score
             })
+            mp4_path = os.path.join(self.progress_folder, self.run_name+".mp4")
+        
+            progress2video(self.progress_folder, mp4_path, 5)
+            wandb.log({"Data_transform": wandb.Image(mp4_path)})
     
     def progress2gif(self, output_path=""):
         """Store prediction progress gif to local disk. If wandb then upload."""

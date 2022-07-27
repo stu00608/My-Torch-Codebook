@@ -3,6 +3,7 @@ import sys
 import argparse
 from solver import CircleSolver
 from utils.files import file_choices
+from utils.progress2video import progress2video
 
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS: sys.path.append(PATHS[k])
