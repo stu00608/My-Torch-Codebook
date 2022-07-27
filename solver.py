@@ -4,6 +4,7 @@ import torch.nn as nn
 import yaml
 import sys
 import os
+import imageio
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -12,8 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
 from utils.helper import set_device, to_numpy, to_tensor
-from utils.dataset import CircleData
-from utils.metrics import mse
+from datasets.dataset import CircleData
 
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS:
@@ -33,11 +33,9 @@ class CircleSolver:
         config = yaml.safe_load(open(PATHS["CONFIG"] + config))
         self.__dict__.update({}, **config)
         if self.use_wandb:
-            wandb.init(config=config, project="My-PyTorch-Codebook")
+            upload_config = {}.update(config.model_params, config.loader_params)
+            wandb.init(config=upload_config, project="My-PyTorch-Codebook")
 
-        self.progress_data_x = []
-        self.progress_data_y = []
-        self.progress_data_labelintermidiate = []
         self.progress_folder = os.path.join(PATHS["PROGRESS"], self.run_name)
         if os.path.exists(self.progress_folder):
             files = glob(os.path.join(self.progress_folder, "*.png"))
@@ -74,8 +72,7 @@ class CircleSolver:
                     self.optim.zero_grad()
 
                     # Pass data to model and compute forward.
-                    intermidiate, pred = self.model(data)
-                    pred_max, pred_class_index = pred.max(dim=1)
+                    _, pred = self.model(data)
 
                     if self.log_progress:
                         x, y = self.train_dataset.get_raw()
@@ -96,11 +93,6 @@ class CircleSolver:
                     # Summarize loss and acc in every step.
                     epoch_loss += to_numpy(loss)
                     show_epoch_loss = np.round(epoch_loss, 4)
-                    # eval_max, eval_label = label.max(dim=1)
-                    # acc = (eval_label == pred_class_index).sum()/data.size(0)
-                    # show_acc = np.round(to_numpy(acc), 4)
-                    # accsum = (eval_label == pred_class_index).sum()
-                    # accnum = data.size(0)
 
                     # Update progress bar.
                     tepoch.set_postfix(loss=show_epoch_loss)
@@ -185,3 +177,17 @@ class CircleSolver:
                 "train_score": train_score,
                 "test_score": test_score
             })
+    
+    def progress2gif(self, output_path=""):
+        """Store prediction progress gif to local disk. If wandb then upload."""
+        if os.path.exists(self.progress_folder):
+            files = glob(os.path.join(self.progress_folder, "*.png"))
+            imgs = []
+            for file in files:
+                imgs.append(imageio.imread(file))
+            gif_path = os.path.join(output_path, self.run_name+".gif")
+            imageio.mimsave(gif_path, imgs)
+            if self.use_wandb:
+                wandb.log({"Data_transform", wandb.Image(gif_path)})
+        else:
+            print("Error loading progress!")

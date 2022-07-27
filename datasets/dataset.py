@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_circles
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-from utils.helper import one_hot
 
 
 PATHS = yaml.safe_load(open("paths.yaml"))
@@ -58,6 +57,9 @@ class CircleData(Dataset):
         y = self.data[:, 1]
         plt.scatter(x, y, c=self.label)
         plt.show()
+    
+    def get_raw(self):
+        return self.data, self.label
 
     def __len__(self):
         """Returns the length of this dataset."""

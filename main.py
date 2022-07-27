@@ -1,7 +1,7 @@
 import yaml
 import sys
 import argparse
-from utils.solver import CircleSolver
+from solver import CircleSolver
 from utils.files import file_choices
 
 PATHS = yaml.safe_load(open("paths.yaml"))
@@ -16,3 +16,4 @@ if __name__ == "__main__":
 
     solver = CircleSolver(args.config)
     solver.run(args.gpu_id)
+    solver.progress2gif()
