@@ -33,7 +33,7 @@ class CircleSolver:
         config = yaml.safe_load(open(PATHS["CONFIG"] + config))
         self.__dict__.update({}, **config)
         if self.use_wandb:
-            upload_config = {}.update(config.model_params, config.loader_params)
+            upload_config = {}.update(config["model_params"], config["loader_params"])
             wandb.init(config=upload_config, project="My-PyTorch-Codebook")
 
         self.progress_folder = os.path.join(PATHS["PROGRESS"], self.run_name)
