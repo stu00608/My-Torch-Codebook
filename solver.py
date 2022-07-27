@@ -182,7 +182,7 @@ class CircleSolver:
             })
             mp4_path = os.path.join(self.progress_folder, self.run_name+".mp4")
         
-            progress2video(self.progress_folder, mp4_path, 5)
+            progress2video(self.progress_folder, mp4_path, 5, False)
             wandb.log({"Data_transform": wandb.Image(mp4_path)})
     
     def progress2gif(self, output_path=""):
