@@ -6,3 +6,4 @@ tqdm
 wandb
 pipreqs
 imageio
+opencv-python

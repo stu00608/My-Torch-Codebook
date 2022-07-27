@@ -2,7 +2,7 @@ import os
 import cv2
 import argparse
 from glob import glob
-from files import file_choices
+from .files import file_choices
 
 
 def progress2video(path: str, name: str, fps: int, remove: bool):
