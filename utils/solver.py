@@ -7,6 +7,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from glob import glob
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
@@ -15,11 +16,13 @@ from utils.dataset import CircleData
 from utils.metrics import mse
 
 PATHS = yaml.safe_load(open("paths.yaml"))
-for k in PATHS: sys.path.append(PATHS[k])
+for k in PATHS:
+    sys.path.append(PATHS[k])
+
 
 class CircleSolver:
     """This solver runs a regression training model that predict the label of inner or outer circle.
-    
+
     Methods
     -------
     run(gpu_id='')
@@ -27,17 +30,27 @@ class CircleSolver:
     """
 
     def __init__(self, config) -> None:
-        config = yaml.safe_load(open(PATHS["CONFIG"] + config))  
+        config = yaml.safe_load(open(PATHS["CONFIG"] + config))
         self.__dict__.update({}, **config)
         if self.use_wandb:
             wandb.init(config=config, project="My-PyTorch-Codebook")
 
         self.progress_data_x = []
         self.progress_data_y = []
-        self.progress_data_label = []
+        self.progress_data_labelintermidiate = []
+        self.progress_folder = os.path.join(PATHS["PROGRESS"], self.run_name)
+        if os.path.exists(self.progress_folder):
+            files = glob(os.path.join(self.progress_folder, "*.png"))
+            for file in files:
+                os.remove(file)
+        else:
+            os.makedirs(self.progress_folder)
+        
+        self.figure = plt.figure(figsize=(10, 10))
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
+
     def _train(self, dataloader):
         """Training the model"""
         # Set the model to training mode inplace.
@@ -53,21 +66,23 @@ class CircleSolver:
                 tepoch.set_description(f"Epoch {epoch+1}/{total_epoch}")
 
                 epoch_loss = 0.
-                for data, label in tepoch:
+                for r_data, r_label in tepoch:
                     # Send data and label to compute device.
-                    data, label = data.to(self.device), label.to(self.device)
-                    
+                    data, label = to_tensor(r_data), to_tensor(r_label)
+
                     # Reset the gradien inside optimizer.
                     self.optim.zero_grad()
 
                     # Pass data to model and compute forward.
-                    intermidiate, pred = self.model(to_tensor(data))
+                    intermidiate, pred = self.model(data)
                     pred_max, pred_class_index = pred.max(dim=1)
 
-                    self._log_progress(epoch, intermidiate, pred_class_index)
+                    if self.log_progress:
+                        self._log_progress(
+                            epoch, intermidiate, label)
 
                     # Calcaulate loss between prediction and ground truth.
-                    loss = self.loss_func(pred, label)
+                    loss = self.loss_func(pred, label.reshape(-1, 1))
 
                     # Backpropagation
                     loss.backward()
@@ -76,7 +91,7 @@ class CircleSolver:
                     self.optim.step()
 
                     # Summarize loss and acc in every step.
-                    epoch_loss += loss.item()
+                    epoch_loss += to_numpy(loss)
                     show_epoch_loss = np.round(epoch_loss, 4)
                     eval_max, eval_label = label.max(dim=1)
                     acc = (eval_label == pred_class_index).sum()/data.size(0)
@@ -87,12 +102,12 @@ class CircleSolver:
                     # Update progress bar.
                     tepoch.set_postfix(acc=show_acc, loss=show_epoch_loss)
 
-                if self.use_wandb: 
+                if self.use_wandb:
                     wandb.log({
                         "loss": epoch_loss,
                         "acc": acc
                     })
-            
+
     def _predict(self, dataloader):
         # Change model to evaluation mode inplace.
         self.model.eval()
@@ -107,28 +122,20 @@ class CircleSolver:
                 else:
                     total_pred = pred
 
-
         return total_pred
-    
-    def _log_progress(self, epoch, data, label):
-        data_x, data_y, label = to_numpy(data[:, 0]), to_numpy(data[:, 1]), to_numpy(label)
-        # self.progress_data_x.append(data_x)
-        # self.progress_data_y.append(data_x)
-        # self.progress_data_label.append(label)
-        # self.progress_data_x = data_x
-        # self.progress_data_y = data_y
-        # self.progress_data_label = label
-        plt.figure(figsize=(10, 10))
+
+    def _log_progress(self, epoch, data, label, in_place=True):
+        """If in_place will clean progress_folder."""
+        plt.clf()
+        data_x, data_y, label = to_numpy(
+            data[:, 0]), to_numpy(data[:, 1]), to_numpy(label)
         plt.subplot(111)
         plt.ylabel("y")
         plt.xlabel("x")
         plt.scatter(data_x, data_y, c=label)
-        if not os.path.exists("progress"):
-            os.mkdir("progress")
-        
-        plt.savefig(os.path.join("progress", "snap_epoch_%03d.png" % epoch))
 
-    
+        plt.savefig(os.path.join(self.progress_folder, "epoch_%03d.png" % epoch))
+
     def run(self, gpu_id):
         set_device(gpu_id)
 
@@ -137,14 +144,16 @@ class CircleSolver:
         np.random.seed(self.random_state)
 
         # Get train and test dataset and fit into dataloader.
-        self.train_dataset = CircleData(self.loader_params, self.random_state, is_train=True)
+        self.train_dataset = CircleData(
+            self.loader_params, self.random_state, is_train=True)
         train_dataloader = DataLoader(
             dataset=self.train_dataset,
             batch_size=self.loader_params["batch_size"],
             shuffle=True,
         )
 
-        self.test_dataset = CircleData(self.loader_params, self.random_state, is_train=False)
+        self.test_dataset = CircleData(
+            self.loader_params, self.random_state, is_train=False)
         test_dataloader = DataLoader(
             dataset=self.test_dataset,
             batch_size=self.loader_params["batch_size"],
@@ -153,7 +162,7 @@ class CircleSolver:
 
         # Create model object and loss function and optimizer function.
         self.model = CircleRegressor(self.model_params).to(self.device)
-        self.loss_func = nn.CrossEntropyLoss()
+        self.loss_func = nn.BCELoss()
         self.optim = Adam(self.model.parameters(), lr=self.model_params["lr"])
 
         # Train
@@ -165,8 +174,10 @@ class CircleSolver:
 
         # Calculate mse for evaluating train and test data.
         # NOTE: Not sure what's this part.
-        train_score = self.loss_func(train_loss, to_tensor(self.train_dataset.label))
-        test_score = self.loss_func(test_loss, to_tensor(self.test_dataset.label))
+        train_score = self.loss_func(
+            train_loss, to_tensor(self.train_dataset.label))
+        test_score = self.loss_func(
+            test_loss, to_tensor(self.test_dataset.label))
 
         if self.use_wandb:
             wandb.log({

@@ -2,8 +2,9 @@ exp_name: CircleLogisticRegressionExperiment
 run_name: circle_logistic_exp_3
 random_state: 100
 use_wandb: False
+log_progress: True
 model_params:
-  N_epoch: 100
+  N_epoch: 50
   n_layers: 3
   dropout_rate: 0.2
   hidden_size: 16
