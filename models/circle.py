@@ -21,7 +21,6 @@ class CircleRegressor(nn.Module):
 
         self.seq = nn.Sequential(*layers)
         self.out = nn.Linear(self.hidden_size, self.output_size)
-        # self.softmax = nn.Softmax()
 
         self.clf_out = nn.Linear(self.output_size, 1)
         self.clf_sigmoid = nn.Sigmoid()

@@ -78,8 +78,11 @@ class CircleSolver:
                     pred_max, pred_class_index = pred.max(dim=1)
 
                     if self.log_progress:
+                        x, y = self.train_dataset.get_raw()
+                        x, y = to_tensor(x), to_tensor(y)
+                        transformed_point, eval_pred = self.model(x)
                         self._log_progress(
-                            epoch, intermidiate, label)
+                            epoch, transformed_point, y)
 
                     # Calcaulate loss between prediction and ground truth.
                     loss = self.loss_func(pred, label.reshape(-1, 1))
@@ -93,19 +96,18 @@ class CircleSolver:
                     # Summarize loss and acc in every step.
                     epoch_loss += to_numpy(loss)
                     show_epoch_loss = np.round(epoch_loss, 4)
-                    eval_max, eval_label = label.max(dim=1)
-                    acc = (eval_label == pred_class_index).sum()/data.size(0)
-                    show_acc = np.round(to_numpy(acc), 4)
+                    # eval_max, eval_label = label.max(dim=1)
+                    # acc = (eval_label == pred_class_index).sum()/data.size(0)
+                    # show_acc = np.round(to_numpy(acc), 4)
                     # accsum = (eval_label == pred_class_index).sum()
                     # accnum = data.size(0)
 
                     # Update progress bar.
-                    tepoch.set_postfix(acc=show_acc, loss=show_epoch_loss)
+                    tepoch.set_postfix(loss=show_epoch_loss)
 
                 if self.use_wandb:
                     wandb.log({
                         "loss": epoch_loss,
-                        "acc": acc
                     })
 
     def _predict(self, dataloader):
@@ -124,8 +126,7 @@ class CircleSolver:
 
         return total_pred
 
-    def _log_progress(self, epoch, data, label, in_place=True):
-        """If in_place will clean progress_folder."""
+    def _log_progress(self, epoch, data, label):
         plt.clf()
         data_x, data_y, label = to_numpy(
             data[:, 0]), to_numpy(data[:, 1]), to_numpy(label)

@@ -44,6 +44,6 @@ if __name__ == "__main__":
     parser.add_argument("--path", type=str, required=True, help="Where the snapshots in.")        
     parser.add_argument('--out', type=lambda s:file_choices(("mp4"),s), default="progress.mp4", help="Output video file name, must have .mp4 or .avi.")
     parser.add_argument('--fps', type=int, default=2, help="Frame per second.")
-    parser.add_argument('--remove', action="store_false", help="Whether to remove the snapshots in the `path` folder.")
+    parser.add_argument('--remove', action="store_true", help="Whether to remove the snapshots in the `path` folder.")
     args = parser.parse_args()
     progress2video(args.path, args.out, args.fps, args.remove)
