@@ -33,8 +33,9 @@ class CircleSolver:
         config = yaml.safe_load(open(PATHS["CONFIG"] + config))
         self.__dict__.update({}, **config)
         if self.use_wandb:
-            upload_config = {}.update(config["model_params"])
-            upload_config = upload_config.update(config["loader_params"])
+            upload_config = {}
+            upload_config.update(config["model_params"])
+            upload_config.update(config["loader_params"])
             wandb.init(config=upload_config, project="My-PyTorch-Codebook")
 
         self.progress_folder = os.path.join(PATHS["PROGRESS"], self.run_name)
@@ -189,6 +190,6 @@ class CircleSolver:
             gif_path = os.path.join(output_path, self.run_name+".gif")
             imageio.mimsave(gif_path, imgs)
             if self.use_wandb:
-                wandb.log({"Data_transform", wandb.Image(gif_path)})
+                wandb.log({"Data_transform": wandb.Image(gif_path)})
         else:
             print("Error loading progress!")
