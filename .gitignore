@@ -12,3 +12,4 @@ wandb/
 
 # Skip other
 progress/
+data/

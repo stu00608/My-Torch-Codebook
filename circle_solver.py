@@ -10,7 +10,7 @@ from tqdm import tqdm
 from glob import glob
 from torch.utils.data import DataLoader
 from torch.optim import Adam
-from models.circle import CircleRegressor
+from models.circle_model import CircleRegressor
 from utils.helper import set_device, to_numpy, to_tensor
 from datasets.circle_dataset import CircleData
 
