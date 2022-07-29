@@ -4,7 +4,6 @@ import torch.nn as nn
 import yaml
 import sys
 import os
-import imageio
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -179,17 +178,3 @@ class CircleSolver:
                 "train_score": train_score,
                 "test_score": test_score
             })
-    
-    def progress2gif(self, output_path=""):
-        """Store prediction progress gif to local disk. If wandb then upload."""
-        if os.path.exists(self.progress_folder):
-            files = sorted(glob(os.path.join(self.progress_folder, "*.png")))
-            imgs = []
-            for file in files:
-                imgs.append(imageio.imread(file))
-            gif_path = os.path.join(output_path, self.run_name+".gif")
-            imageio.mimsave(gif_path, imgs)
-            if self.use_wandb:
-                wandb.log({"Data_transform": wandb.Image(gif_path)})
-        else:
-            print("Error loading progress!")

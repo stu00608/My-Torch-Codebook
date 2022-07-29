@@ -5,4 +5,4 @@ scikit_learn
 tqdm
 wandb
 pipreqs
-imageio
+opencv-python
