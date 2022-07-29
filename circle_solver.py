@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from models.circle import CircleRegressor
 from utils.helper import set_device, to_numpy, to_tensor
-from datasets.dataset import CircleData
+from datasets.circle_dataset import CircleData
 
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS:
