@@ -1,0 +1,14 @@
+exp_name: MNIST_CNN_Experiment
+run_name: mnist_cnn_exp_2
+random_state: 100
+use_wandb: False
+model_params:
+  N_epoch: 10
+  dropout_rate: 0.3
+  kernel_size: 3
+  stride_size: 1
+  hidden_size: 128
+  lr: 0.001
+  output_size: 10
+loader_params:
+  batch_size: 128

@@ -15,16 +15,18 @@ def mnist_dataset(params):
     if not os.path.exists("./data"):
         os.mkdir("./data")
 
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307, ), (0.3081, ))])
+
     train_dataset = datasets.MNIST(
         "./data",
         train=True,
         download=True,
-        transform=transforms.ToTensor()
+        transform=transform
     )
     test_dataset = datasets.MNIST(
         "./data",
         train=False,
-        transform=transforms.ToTensor()
+        transform=transform
     )
 
     train_dataloader = torch.utils.data.DataLoader(
