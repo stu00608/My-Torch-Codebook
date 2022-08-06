@@ -50,9 +50,11 @@ class MnistSolver:
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
 
-    def _train(self, train_dataloader, test_dataloader):
+    def _train(self, train_dataloader):
         """Training the model"""
         # Set the model to training mode inplace.
+
+        self.model.train()
 
         # Wandb magic.
         if self.use_wandb:
@@ -61,8 +63,6 @@ class MnistSolver:
         total_epoch = self.model_params["N_epoch"]
         for epoch in range(total_epoch):
             print("Train : ", end='')
-            self.model.train()
-            epoch_loss = 0.
             for index, (r_data, r_label) in enumerate(train_dataloader):
                 # Send data and label to compute device.
                 data, label = to_tensor(r_data), to_tensor(r_label)
@@ -82,40 +82,37 @@ class MnistSolver:
                 # Gradient step
                 self.optimizer.step()
 
-                # Summarize loss and acc in every step.
-                epoch_loss += to_numpy(loss)
-
-                if index % (len(train_dataloader)//10) == 0:
-                    print('.', end='')
-
-            print("\nVal   : ", end='')
-            epoch_loss = 100. * epoch_loss / len(train_dataloader.dataset)
-            self.model.eval()
-            eval_loss = 0.0
-            for index, (r_data, r_label) in enumerate(test_dataloader):
-                data, label = to_tensor(r_data), to_tensor(r_label)
-                pred_label = self.model(data)
-                loss = self.loss_fn(pred_label, label)
-                eval_loss += to_numpy(loss)
-
-                if index % (len(test_dataloader)//10) == 0:
-                    print('.', end='')
-
-            eval_loss = 100. * eval_loss / len(test_dataloader.dataset)
-            
-            print('\nEpoch: {}/{} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
-                epoch+1, 
-                total_epoch,
-                epoch_loss,
-                eval_loss
-            ))
-
+                if index % 10 == 0:
+                    print('\nEpoch: {} [{}/{}] \tTraining Loss: {:.3f}'.format(
+                        epoch+1,
+                        index*len(r_data),
+                        len(train_dataloader.dataset),
+                        loss.item(),
+                    ))
             if self.use_wandb:
                 wandb.log({
-                    "train_loss": epoch_loss,
-                    "test_loss": eval_loss
+                    "train_loss": loss,
                 })
                 
+    def _test(self, test_dataloader):
+        """Evaluating the model"""
+        self.model.eval()
+
+        test_loss = 0.
+        correct = 0
+        with torch.no_grad():
+            for data, label in test_dataloader:
+                data, label = to_tensor(data), to_tensor(label)
+                pred = self.model(data)
+                test_loss += self.loss_fn(pred, label).item()
+                pred_label = pred.argmax(dim=1, keepdim=True)
+                correct += pred_label.eq(label.view_as(pred_label)).sum().item()
+        
+        test_loss /= len(test_dataloader.dataset)
+
+        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.4f}%)\n'.format(
+            test_loss, correct, len(test_dataloader.dataset),
+            100. * correct / len(test_dataloader.dataset)))
 
     def _predict(self, dataloader):
         # Change model to evaluation mode inplace.
@@ -156,7 +153,8 @@ class MnistSolver:
         self.loss_fn = nn.CrossEntropyLoss()
 
         # Train
-        self._train(train_dataloader, test_dataloader)
+        self._train(train_dataloader)
+        self._test(test_dataloader)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
