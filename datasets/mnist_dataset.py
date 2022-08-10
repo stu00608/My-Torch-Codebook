@@ -9,14 +9,17 @@ PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS:
     sys.path.append(PATHS[k])
 
+
 def mnist_dataset(params):
     """Generate MNIST Dataloader."""
 
     if not os.path.exists("./data"):
         os.mkdir("./data")
 
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307, ), (0.3081, ))])
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307, ), (0.3081, ))])
 
+    # TODO: Make a raw data copy.
     train_dataset = datasets.MNIST(
         "./data",
         train=True,
@@ -42,6 +45,3 @@ def mnist_dataset(params):
     )
 
     return train_dataloader, test_dataloader
-
-
-

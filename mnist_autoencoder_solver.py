@@ -5,6 +5,8 @@ import torch
 import wandb
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
@@ -35,6 +37,10 @@ class MnistAutoencoderSolver:
 
     def _train(self, dataloader):
         self.model.train()
+
+        # Create a folder to save model weight.
+        if not os.path.exists("weights"):
+            os.makedirs("weights")
 
         if self.use_wandb:
             wandb.watch(self.model, log_freq=100)
@@ -74,6 +80,9 @@ class MnistAutoencoderSolver:
                         len(dataloader.dataset),
                         loss.item(),
                     ))
+                    weight_name = self.run_name + f"_Epoch{(epoch+1):03}.pth"
+                    torch.save(self.model, os.path.join("weights", weight_name))
+
             total_loss /= len(dataloader.dataset)
             if self.use_wandb:
                 wandb.log({
@@ -81,36 +90,41 @@ class MnistAutoencoderSolver:
                 })
 
     def _test(self, dataloader):
-        # TODO: WIP
         self.model.eval()
 
+        # If there is no weights folder then throw an exception.
+        if not os.path.exists("weights"):
+            raise RuntimeError(
+                "weights folder not exist, please run training first.")
+
         test_loss = 0.
-        correct = 0.
         with torch.no_grad():
-            for data, label in dataloader:
+
+            for i, (data, label) in enumerate(dataloader):
+
+                show_images(data)
+
                 data = data.view(-1, self.model_params["input_size"])
 
                 data, label = to_tensor(data), to_tensor(label)
 
                 reconstructed_data, latent_space = self.model(data)
 
-                test_loss += F.nll_loss(pred, label, reduction="sum").item()
-                pred_label = pred.argmax(dim=1, keepdim=True)
-                correct += pred_label.eq(label.view_as(pred_label)).sum().item()
+                loss = self.loss(reconstructed_data, data)
+
+                reconstructed_data = to_numpy(reconstructed_data)
+                test_loss += loss
 
             test_loss /= len(dataloader.dataset)
-            test_acc = 100. * correct / len(dataloader.dataset)
 
-            print("\nTest Result\nAcc : {:.3f}%\nLoss: {:.3f}\n".format(
-                test_acc, test_loss))
+            print("\nTest Result\nLoss: {:.3f}\n".format(test_loss))
 
             if self.use_wandb:
                 wandb.log({
-                    "Test Accuracy": test_acc/100,
                     "test Loss": test_loss
                 })
 
-    def run(self):
+    def run(self, is_inference=False):
         torch.manual_seed(self.random_state)
         np.random.seed(self.random_state)
 
@@ -121,7 +135,8 @@ class MnistAutoencoderSolver:
         self.optimizer = Adam(self.model.parameters(),
                               lr=self.model_params["lr"])
 
-        self._train(train_dataloader)
+        if not is_inference:
+            self._train(train_dataloader)
         # self._test(test_dataloader)
 
 
@@ -129,8 +144,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config", type=lambda s: file_choices(("yaml"), s), required=True)
+    parser.add_argument('--inference', action="store_true")
     parser.add_argument('--gpu_id', type=str, default="")
     args = parser.parse_args()
 
     solver = MnistAutoencoderSolver(args.config, args.gpu_id)
-    solver.run()
+    solver.run(is_inference=args.inference)
