@@ -9,13 +9,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from datasets.mnist_dataset import mnist_dataset
-from models.mnist_cnn_model import MnistCnnModel
+from models.mnist_model import MnistCnnModel
 from utils.files import file_choices
 from utils.helper import set_device, to_numpy, to_tensor
 
 PATHS = yaml.safe_load(open("paths.yaml"))
 for k in PATHS:
     sys.path.append(PATHS[k])
+
 
 class MnistCnnSolver:
     def __init__(self, config, gpu_id) -> None:
@@ -25,15 +26,16 @@ class MnistCnnSolver:
             upload_config = {}
             upload_config.update(config["model_params"])
             upload_config.update(config["loader_params"])
-            wandb.init(config=upload_config, project="My-PyTorch-Codebook", name=self.run_name)
+            wandb.init(config=upload_config,
+                       project="My-PyTorch-Codebook", name=self.run_name)
 
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
         set_device(gpu_id)
-    
+
     def _train(self, dataloader):
         self.model.train()
-        
+
         if self.use_wandb:
             wandb.watch(self.model, log_freq=100)
 
@@ -69,7 +71,7 @@ class MnistCnnSolver:
                 wandb.log({
                     "train_loss": loss,
                 })
-    
+
     def _test(self, dataloader):
         self.model.eval()
 
@@ -88,7 +90,8 @@ class MnistCnnSolver:
             test_loss /= len(dataloader.dataset)
             test_acc = 100. * correct / len(dataloader.dataset)
 
-            print("\nTest Result\nAcc : {:.3f}%\nLoss: {:.3f}\n".format(test_acc, test_loss))
+            print("\nTest Result\nAcc : {:.3f}%\nLoss: {:.3f}\n".format(
+                test_acc, test_loss))
 
             if self.use_wandb:
                 wandb.log({
@@ -103,14 +106,17 @@ class MnistCnnSolver:
         train_dataloader, test_dataloader = mnist_dataset(self.loader_params)
 
         self.model = MnistCnnModel(self.model_params).to(self.device)
-        self.optimizer = Adam(self.model.parameters(), lr=self.model_params["lr"])
+        self.optimizer = Adam(self.model.parameters(),
+                              lr=self.model_params["lr"])
 
         self._train(train_dataloader)
         self._test(test_dataloader)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=lambda s:file_choices(("yaml"),s), required=True)        
+    parser.add_argument(
+        "--config", type=lambda s: file_choices(("yaml"), s), required=True)
     parser.add_argument('--gpu_id', type=str, default="")
     args = parser.parse_args()
 
