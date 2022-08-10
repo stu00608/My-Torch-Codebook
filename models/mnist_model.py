@@ -55,3 +55,37 @@ class MnistCnnModel(nn.Module):
         x = self.dropout(x)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+
+
+class MnistAutoencoderModel(nn.Module):
+
+    def __init__(self, config):
+        super(MnistAutoencoderModel, self).__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Linear(784, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 2),
+            nn.ReLU()
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(2, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 784),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        h = self.encoder(x)
+        x = self.decoder(h)
+
+        return x, h
