@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class MnistMlpModel(nn.Module):
     def __init__(self, config):
         super(MnistMlpModel, self).__init__()
@@ -85,6 +84,47 @@ class MnistAutoencoderModel(nn.Module):
             nn.ReLU(True)
         )
 
+    def forward(self, x):
+        h = self.encoder(x)
+        x = self.decoder(h)
+
+        return x, h
+
+class MnistAutoencoderCnnModel(nn.Module):
+
+    def __init__(self, config):
+        super(MnistAutoencoderCnnModel, self).__init__()
+        self.__dict__.update({}, **config)
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 8, 3, stride=2, padding=1),
+            nn.ReLU(True),
+            nn.Conv2d(8, 16, 3, stride=2, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.Conv2d(16, 32, 3, stride=2, padding=0),
+            nn.ReLU(True),
+            nn.Flatten(start_dim=1),
+            nn.Linear(3 * 3 * 32, 128),
+            nn.ReLU(True),
+            nn.Linear(128, self.z_dim)
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(self.z_dim, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 3 * 3 * 32),
+            nn.ReLU(True),
+            nn.Unflatten(dim=1, unflattened_size=(32, 3, 3)),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, output_padding=0),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, padding=1, output_padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 1, 3, stride=2, padding=1, output_padding=1)
+        )
+    
     def forward(self, x):
         h = self.encoder(x)
         x = self.decoder(h)

@@ -1,0 +1,13 @@
+exp_name: MNIST_Autoencoder_Experiment
+run_name: mnist_autoencoder_cnn_exp_dev_1
+random_state: 100
+use_wandb: False
+model_params:
+  N_epoch: 5
+  dropout_rate: 0.3
+  input_size: 784
+  z_dim: 32
+  hidden_size: 128
+  lr: 0.001
+loader_params:
+  batch_size: 256
