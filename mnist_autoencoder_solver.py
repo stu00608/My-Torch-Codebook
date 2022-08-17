@@ -6,9 +6,11 @@ import wandb
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+from tqdm import tqdm
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from torch.optim import Adam
 from datasets.mnist_dataset import mnist_dataset
 from models.mnist_model import MnistAutoencoderModel
@@ -36,8 +38,6 @@ class MnistAutoencoderSolver:
         set_device(gpu_id)
 
     def _train(self, dataloader):
-        self.model.train()
-
         # Create a folder to save model weight.
         if not os.path.exists("weights"):
             os.makedirs("weights")
@@ -45,49 +45,51 @@ class MnistAutoencoderSolver:
         if self.use_wandb:
             wandb.watch(self.model, log_freq=100)
 
-        for epoch in range(self.model_params["N_epoch"]):
+        total_epoch = self.model_params["N_epoch"]
+        for epoch in range(total_epoch):
+            self.model.train()
+            with tqdm(dataloader, unit="batch") as tepoch:
+                tepoch.set_description(f"Epoch {epoch+1}/{total_epoch}")
 
-            total_loss = 0.
-            for index, (data, label) in enumerate(dataloader):
+                epoch_loss = []
+                for index, (data, label) in enumerate(tepoch):
 
-                # Flatten 28*28 image to 1-D 784 tensor.
-                data = data.view(-1, self.model_params["input_size"])
+                    # Flatten 28*28 image to 1-D 784 tensor.
+                    data = data.view(-1, self.model_params["input_size"])
 
-                # Send data and label to compute device.
-                data, label = to_tensor(data), to_tensor(label)
+                    # Send data and label to compute device.
+                    data, label = to_tensor(data), to_tensor(label)
 
-                # Reset the gradien inside optimizer.
-                self.optimizer.zero_grad()
+                    # Reset the gradien inside optimizer.
+                    self.optimizer.zero_grad()
 
-                # Pass data to model and compute forward.
-                reconstructed_data, latent_space = self.model(data)
+                    # Pass data to model and compute forward.
+                    reconstructed_data, latent_space = self.model(data)
 
-                # Calcaulate loss between prediction and ground truth.
-                loss = self.loss(reconstructed_data, data)
+                    # Calcaulate loss between prediction and ground truth.
+                    loss = self.loss(reconstructed_data, data)
 
-                # Backpropagation
-                loss.backward()
+                    # Backpropagation
+                    loss.backward()
 
-                # Gradient step
-                self.optimizer.step()
+                    # Gradient step
+                    self.optimizer.step()
 
-                total_loss += loss
+                    epoch_loss.append(to_numpy(loss))
 
-                if index % 10 == 0:
-                    print('\nEpoch: {} [{}/{}] \tTraining Loss: {:.3f}'.format(
-                        epoch+1,
-                        index*len(data),
-                        len(dataloader.dataset),
-                        loss.item(),
-                    ))
-                    weight_name = self.run_name + f"_Epoch{(epoch+1):03}.pth"
-                    torch.save(self.model, os.path.join("weights", weight_name))
+                    # Calculate average loss in this epoch
+                    current_avg_loss = np.mean(epoch_loss)
+                    # Update progress bar.
+                    tepoch.set_postfix(loss=current_avg_loss)
 
-            total_loss /= len(dataloader.dataset)
-            if self.use_wandb:
-                wandb.log({
-                    "train_loss": total_loss,
-                })
+                if self.use_wandb:
+                    wandb.log({
+                        "train_loss": epoch_loss,
+                    })
+                state_dict_path = os.path.join("weights", self.run_name + f"_Epoch{(epoch+1):03}.pth")
+
+                torch.save(self.model.state_dict(), state_dict_path)
+            self._visualize(dataloader)
 
     def _test(self, dataloader):
         self.model.eval()
@@ -101,8 +103,6 @@ class MnistAutoencoderSolver:
         with torch.no_grad():
 
             for i, (data, label) in enumerate(dataloader):
-
-                show_images(data)
 
                 data = data.view(-1, self.model_params["input_size"])
 
@@ -123,6 +123,35 @@ class MnistAutoencoderSolver:
                 wandb.log({
                     "test Loss": test_loss
                 })
+    
+    def _visualize(self, dataloader: DataLoader):
+        plt.figure(figsize=(16, 5))
+        labels = dataloader.dataset.targets.numpy()
+        n = 10
+        t_idx = {i:np.where(labels==i)[0][0] for i in range(n)}
+        for i in range(n):
+            ax = plt.subplot(2, n, i+1)
+            img = dataloader.dataset[t_idx[i]][0].unsqueeze(0).to(self.device)
+            inference_img_vector = img.view(-1, self.model_params["input_size"])
+
+            self.model.eval()
+            with torch.no_grad():
+                rec_img_vector  = self.model.decoder(self.model.encoder(inference_img_vector))
+
+            rec_img = to_numpy(rec_img_vector).reshape(28, 28, 1)
+            plt.imshow(img.cpu().squeeze().numpy(), cmap='gray')
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)  
+            if i == n//2:
+                ax.set_title('Original images')
+
+            ax = plt.subplot(2, n, i + 1 + n)
+            plt.imshow(rec_img, cmap='gray')  
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)  
+            if i == n//2:
+                ax.set_title('Reconstructed images')
+        plt.show()   
 
     def run(self, is_inference=False):
         torch.manual_seed(self.random_state)

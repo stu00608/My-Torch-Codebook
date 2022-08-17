@@ -61,27 +61,28 @@ class MnistAutoencoderModel(nn.Module):
 
     def __init__(self, config):
         super(MnistAutoencoderModel, self).__init__()
+        self.__dict__.update({}, **config)
 
         self.encoder = nn.Sequential(
-            nn.Linear(784, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 2),
-            nn.ReLU()
+            nn.Linear(self.input_size, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.z_dim),
+            nn.ReLU(True)
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(2, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, 784),
-            nn.ReLU()
+            nn.Linear(self.z_dim, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(True),
+            nn.Linear(self.hidden_size, self.input_size),
+            nn.ReLU(True)
         )
 
     def forward(self, x):

@@ -11,13 +11,18 @@ for k in PATHS:
 
 
 def mnist_dataset(params):
-    """Generate MNIST Dataloader."""
+    """Generate MNIST Dataloader.
+    Returns (train_dataloader, test_dataloader)
+    """
 
     if not os.path.exists("./data"):
         os.mkdir("./data")
 
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.1307, ), (0.3081, ))])
+    # transform = transforms.Compose(
+    #     [transforms.ToTensor(), transforms.Normalize((0.1307, ), (0.3081, ))])
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
 
     # TODO: Make a raw data copy.
     train_dataset = datasets.MNIST(
